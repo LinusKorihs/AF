@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 8a88dcda9766e5e42afe0e8cc9675614
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 321521
+  packageName: GanzSe FREE Modular Character - Fantasy Low Poly Pack
+  packageVersion: 1.12
+  assetPath: Assets/URP GanzSe Free Modular Character Pack/Demo/Scripts/ModularHeroController.cs
+  uploadId: 955504

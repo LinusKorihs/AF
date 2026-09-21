@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f3bc96821b37498d8211b36cbff3d382, type: 3}
+  m_Name: LocalNpcDialogueSettings
+  m_EditorClassIdentifier: Assembly-CSharp::LocalNpcDialogueSettings
+  models:
+  - id: qwen3-4b-instruct-2507
+    label: Qwen 3 4B
+    fileName: Qwen3-4B-Instruct-2507-Q4_K_M.gguf
+  - id: gemma-3-4b-it
+    label: Gemma 3 4B
+    fileName: gemma-3-4b-it-Q4_K_M.gguf
+  port: 8080
+  contextTokens: 2048
+  maxOutputTokens: 160
+  warmupOutputTokens: 1
+  temperature: 0.2
+  parallelRequests: 1
+  warmupQuestion: Ready?
+  deliveryFactId: supply_delivery
+  csvFileName: npc_pilot_v4.csv
+  protocolId: scene-json-v4

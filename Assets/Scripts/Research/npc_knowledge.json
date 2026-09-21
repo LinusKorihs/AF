@@ -1,0 +1,26 @@
+{
+  "world": "The story takes place in a snow-covered village. A snowstorm destroyed the harvest. The harvest remains destroyed even after a food delivery arrives.",
+  "unknownRule": "Use only the facts stated here. If these facts do not answer a question, say openly that you do not know. Do not invent names, quantities, plans, or statements by other people.",
+  "responseInstruction": "Reply in English in character, using no more than two short sentences. The current supply_state is exactly {state}; return this value.",
+  "npcs": [
+    {
+      "id": "Farmer",
+      "displayName": "Farmer",
+      "role": "You are a farmer from this village.",
+      "knowledge": "You know that the harvest was destroyed and know the current supply situation. Speak from your perspective as an affected villager."
+    },
+    {
+      "id": "Knight",
+      "displayName": "Knight",
+      "role": "You are a knight who protects the village and its inhabitants.",
+      "knowledge": "You know the current supply situation and can guard the delivery once it arrives. You do not know the king's thoughts or plans."
+    }
+  ],
+  "worldObjects": [
+    {
+      "id": "supply_delivery",
+      "activeFact": "A horse with a cart, wheat, and other food has now arrived in the village. The immediate supply situation has temporarily improved.",
+      "inactiveFact": "The horse carrying the food delivery has not arrived in the village yet. Food is scarce and the supply situation is critical."
+    }
+  ]
+}

@@ -37,6 +37,8 @@ public sealed class LocalNpcDialogueSettings : ScriptableObject
     [SerializeField, Range(0f, 2f)] private float temperature = 0.2f;
     [Tooltip("Number of concurrent request slots configured when llama.cpp starts.")]
     [SerializeField, Min(1)] private int parallelRequests = 1;
+    [Tooltip("Maximum time in seconds for one dialogue request before it is logged as a timeout.")]
+    [SerializeField, Min(1)] private int requestTimeoutSeconds = 120;
     [Tooltip("Question sent during startup warmup before the model is marked ready.")]
     [SerializeField] private string warmupQuestion = "Ready?";
 
@@ -44,9 +46,9 @@ public sealed class LocalNpcDialogueSettings : ScriptableObject
     [Tooltip("Fact ID of the delivery object in the scene and the matching entry in the knowledge JSON.")]
     [SerializeField] private string deliveryFactId = "supply_delivery";
     [Tooltip("CSV filename written under Application.persistentDataPath for Unity dialogue runs.")]
-    [SerializeField] private string csvFileName = "npc_pilot_v4.csv";
+    [SerializeField] private string csvFileName = "npc_pilot_v5.csv";
     [Tooltip("Protocol identifier stored in each CSV row. Change it when the test protocol changes.")]
-    [SerializeField] private string protocolId = "scene-json-v4";
+    [SerializeField] private string protocolId = "scene-json-v5";
 
     public ModelOption[] Models => models;
     public int Port => port;
@@ -55,6 +57,7 @@ public sealed class LocalNpcDialogueSettings : ScriptableObject
     public int WarmupOutputTokens => warmupOutputTokens;
     public float Temperature => temperature;
     public int ParallelRequests => parallelRequests;
+    public int RequestTimeoutSeconds => requestTimeoutSeconds;
     public string WarmupQuestion => warmupQuestion;
     public string DeliveryFactId => deliveryFactId;
     public string CsvFileName => csvFileName;

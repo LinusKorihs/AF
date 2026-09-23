@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using UnityEngine;
 
 [Serializable]
@@ -32,25 +34,20 @@ public sealed class NpcWorldObjectFact
     public string inactiveFact;
 }
 
-public sealed class NpcDialogueValidation
-{
-    public string Dialogue;
-    public bool SyntaxValid;
-    public bool StructureValid;
-    public bool StateValid;
-    public string Error;
-}
-
 public static class NpcDialogueProtocol
 {
     private const string CriticalState = "critical";
     private const string ImprovedState = "temporarily_improved";
 
-    [Serializable]
-    private sealed class Response
+    public static string ExpectedState(bool delivered) => delivered ? ImprovedState : CriticalState;
+
+    public static NpcKnowledgeEntry FindNpc(NpcKnowledgeFile knowledge, string npcId)
     {
-        public string dialogue;
-        public string supply_state;
+        if (knowledge?.npcs == null) return null;
+        foreach (var npc in knowledge.npcs)
+            if (npc != null && string.Equals(npc.id, npcId, StringComparison.Ordinal))
+                return npc;
+        return null;
     }
 
     public static NpcWorldFactSource[] FindWorldSources(MonoBehaviour owner)
@@ -188,29 +185,87 @@ public static class NpcDialogueProtocol
 
     public static NpcDialogueValidation Validate(string raw, bool delivered)
     {
-        var result = new NpcDialogueValidation();
+        var result = new NpcDialogueValidation {
+            ErrorCode = NpcDialogueErrorCode.InvalidJson,
+            Error = "Response is not a JSON object."
+        };
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            result.Error = "Response JSON is empty.";
+            return result;
+        }
+
+        JToken token;
         try
         {
-            // The later batch evaluation uses a strict JSON parser.
-            if (raw.StartsWith("{") && raw.EndsWith("}"))
-            {
-                var parsed = JsonUtility.FromJson<Response>(raw);
-                result.SyntaxValid = parsed != null;
-                result.StructureValid = result.SyntaxValid
-                    && !string.IsNullOrWhiteSpace(parsed.dialogue)
-                    && (parsed.supply_state == CriticalState
-                        || parsed.supply_state == ImprovedState);
-                result.StateValid = result.StructureValid && parsed.supply_state ==
-                    (delivered ? ImprovedState : CriticalState);
-                result.Dialogue = result.StructureValid ? parsed.dialogue : raw;
-            }
-            else result.Dialogue = raw;
+            using (var stringReader = new StringReader(raw))
+            using (var reader = new JsonTextReader(stringReader))
+                while (reader.Read())
+                    if (reader.TokenType == JsonToken.Comment)
+                        throw new JsonReaderException("JSON comments are not allowed.");
+            token = JToken.Parse(raw, new JsonLoadSettings {
+                DuplicatePropertyNameHandling = DuplicatePropertyNameHandling.Error,
+                LineInfoHandling = LineInfoHandling.Ignore
+            });
         }
-        catch (Exception ex)
+        catch (JsonException ex)
         {
             result.Error = "Response JSON could not be parsed: " + ex.Message;
-            result.Dialogue = raw;
+            return result;
         }
+
+        result.SyntaxValid = true;
+        if (!(token is JObject obj))
+        {
+            result.Error = "Response root must be a JSON object.";
+            return result;
+        }
+
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var property in obj.Properties()) names.Add(property.Name);
+        if (!names.Contains("dialogue") || !names.Contains("supply_state"))
+        {
+            result.ErrorCode = NpcDialogueErrorCode.MissingField;
+            result.Error = "Response must contain dialogue and supply_state.";
+            return result;
+        }
+        if (names.Count != 2)
+        {
+            result.ErrorCode = NpcDialogueErrorCode.UnexpectedFields;
+            result.Error = "Response contains fields other than dialogue and supply_state.";
+            return result;
+        }
+
+        JToken dialogue = obj["dialogue"];
+        JToken state = obj["supply_state"];
+        if (dialogue?.Type != JTokenType.String || state?.Type != JTokenType.String
+            || string.IsNullOrWhiteSpace(dialogue.Value<string>()))
+        {
+            result.ErrorCode = NpcDialogueErrorCode.InvalidValue;
+            result.Error = "dialogue and supply_state must be non-empty strings.";
+            return result;
+        }
+
+        result.Dialogue = dialogue.Value<string>().Trim();
+        result.SupplyState = state.Value<string>();
+        if (result.SupplyState != CriticalState && result.SupplyState != ImprovedState)
+        {
+            result.ErrorCode = NpcDialogueErrorCode.InvalidValue;
+            result.Error = "supply_state is not an allowed value.";
+            return result;
+        }
+
+        result.StructureValid = true;
+        result.StateValid = result.SupplyState == ExpectedState(delivered);
+        if (!result.StateValid)
+        {
+            result.ErrorCode = NpcDialogueErrorCode.StateMismatch;
+            result.Error = "supply_state does not match Unity's world state.";
+            return result;
+        }
+
+        result.ErrorCode = NpcDialogueErrorCode.None;
+        result.Error = "";
         return result;
     }
 

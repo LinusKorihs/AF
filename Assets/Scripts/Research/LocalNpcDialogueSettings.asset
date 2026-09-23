@@ -25,7 +25,8 @@ MonoBehaviour:
   warmupOutputTokens: 1
   temperature: 0.2
   parallelRequests: 1
+  requestTimeoutSeconds: 120
   warmupQuestion: Ready?
   deliveryFactId: supply_delivery
-  csvFileName: npc_pilot_v4.csv
-  protocolId: scene-json-v4
+  csvFileName: npc_pilot_v5.csv
+  protocolId: scene-json-v5

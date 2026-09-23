@@ -37,10 +37,17 @@ public sealed class LocalNpcDialoguePilotEditor : Editor
         EditorGUILayout.PropertyField(serializedObject.FindProperty("knowledgeJson"),
             new GUIContent("Knowledge",
                 "JSON file containing world facts, NPC roles, knowledge boundaries, and response instructions."));
+        EditorGUILayout.PropertyField(serializedObject.FindProperty("testCatalog"),
+            new GUIContent("Test Catalog",
+                "Versioned JSON catalog used by the automated Research Mode comparison."));
 
         EditorGUILayout.Space(8);
         EditorGUILayout.LabelField("Modes", EditorStyles.boldLabel);
+        EditorGUILayout.PropertyField(serializedObject.FindProperty("mode"));
         EditorGUILayout.PropertyField(serializedObject.FindProperty("loadModelOnSceneStart"));
+        EditorGUILayout.PropertyField(serializedObject.FindProperty("npcKeys"), true);
+        EditorGUILayout.PropertyField(serializedObject.FindProperty("deliveryKey"));
+        EditorGUILayout.PropertyField(serializedObject.FindProperty("batchRepeats"));
         serializedObject.ApplyModifiedProperties();
     }
 }

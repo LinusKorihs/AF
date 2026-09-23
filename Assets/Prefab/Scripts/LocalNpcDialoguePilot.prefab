@@ -49,3 +49,12 @@ MonoBehaviour:
   settings: {fileID: 11400000, guid: d8c9c576d5e14816922289ac1bca9769, type: 2}
   question: How is the village's food supply?
   knowledgeJson: {fileID: 4900000, guid: 490933102d4140bfac712ba4671a7ca0, type: 3}
+  testCatalog: {fileID: 4900000, guid: 135d64cbcbf04b78afc9a131b254744d, type: 3}
+  mode: 0
+  npcKeys:
+  - npcId: Farmer
+    key: 31
+  - npcId: Knight
+    key: 19
+  deliveryKey: 32
+  batchRepeats: 5

@@ -22,6 +22,8 @@ public sealed class LocalNpcInferenceRuntime : IDisposable
 
     public bool IsReady { get; private set; }
     public string Status { get; private set; } = "No model loaded.";
+    public double? LastServerReadyMilliseconds { get; private set; }
+    public double? LastWarmupMilliseconds { get; private set; }
 
     public LocalNpcInferenceRuntime(LocalNpcDialogueSettings settings)
     {
@@ -73,6 +75,9 @@ public sealed class LocalNpcInferenceRuntime : IDisposable
     {
         Stop();
         IsReady = false;
+        LastServerReadyMilliseconds = null;
+        LastWarmupMilliseconds = null;
+        var serverReadyTimer = Stopwatch.StartNew();
         if (Application.platform != RuntimePlatform.WindowsEditor
             && Application.platform != RuntimePlatform.WindowsPlayer)
         {
@@ -187,7 +192,11 @@ public sealed class LocalNpcInferenceRuntime : IDisposable
             yield break;
         }
 
+        serverReadyTimer.Stop();
+        LastServerReadyMilliseconds = serverReadyTimer.Elapsed.TotalMilliseconds;
+
         Status = model.id + " loaded. Warming up the first dialogue request...";
+        var warmupTimer = Stopwatch.StartNew();
         using (var warmup = UnityWebRequest.Post(settings.ChatEndpoint, warmupBody, "application/json"))
         {
             warmup.timeout = 120;
@@ -199,6 +208,8 @@ public sealed class LocalNpcInferenceRuntime : IDisposable
                 yield break;
             }
         }
+        warmupTimer.Stop();
+        LastWarmupMilliseconds = warmupTimer.Elapsed.TotalMilliseconds;
         IsReady = true;
         Status = model.id + " is ready.";
     }

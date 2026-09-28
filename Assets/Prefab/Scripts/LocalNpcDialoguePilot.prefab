@@ -44,17 +44,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: babb5348047dd9b499f4b57afa8e224d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LocalNpcDialoguePilot
-  loadModelOnSceneStart: 1
-  startupModel: 0
   settings: {fileID: 11400000, guid: d8c9c576d5e14816922289ac1bca9769, type: 2}
+  startupModel: 0
   question: How is the village's food supply?
   knowledgeJson: {fileID: 4900000, guid: 490933102d4140bfac712ba4671a7ca0, type: 3}
-  testCatalog: {fileID: 4900000, guid: 135d64cbcbf04b78afc9a131b254744d, type: 3}
-  mode: 0
+  testCatalog: {fileID: 11400000, guid: 42a4b20e09bc417b8dbb945f73252ef6, type: 2}
+  loadModelOnSceneStart: 1
+  mode: 1
   npcKeys:
   - npcId: Farmer
     key: 31
   - npcId: Knight
     key: 19
   deliveryKey: 32
-  batchRepeats: 5
+  batchRepeats: 10
+  includeCpuInBatch: 1

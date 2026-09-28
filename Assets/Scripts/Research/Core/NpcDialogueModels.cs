@@ -29,6 +29,12 @@ public sealed class NpcDialogueRequest
     public string CaseId = "";
     public int Repeat;
     public int ModelOrder;
+    public int BackendOrder;
+    public string CatalogId = "";
+    public string CatalogHash = "";
+    public string Expectation = "";
+    public string ReviewNotes = "";
+    public int SamplingSeed = -1;
     public string NpcId;
     public string Question;
     public bool DeliveryArrived;
@@ -58,6 +64,9 @@ public sealed class NpcDialogueResult
     public string KnowledgeHash;
     public string WorldObjects;
     public string RawResponse;
+    public string PresentationDialogue;
+    public bool FallbackUsed;
+    public string FallbackReason;
     public double? FirstTextMilliseconds;
     public double? LastTextMilliseconds;
     public double ValidatedResponseMilliseconds;
@@ -66,4 +75,19 @@ public sealed class NpcDialogueResult
     public NpcDialogueValidation Validation = new NpcDialogueValidation();
 
     public bool IsUsable => Validation != null && Validation.IsUsable;
+}
+
+public sealed class NpcModelSetupResult
+{
+    public string RunId;
+    public int BackendOrder;
+    public int ModelOrder;
+    public string Backend;
+    public string Model;
+    public double? ServerReadyMilliseconds;
+    public double? WarmupMilliseconds;
+    public double TotalStartupMilliseconds;
+    public bool Success;
+    public string Error;
+    public string OutputPath;
 }

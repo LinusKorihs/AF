@@ -27,6 +27,8 @@ MonoBehaviour:
   parallelRequests: 1
   requestTimeoutSeconds: 120
   warmupQuestion: Ready?
+  batchSeedBase: 20260924
   deliveryFactId: supply_delivery
-  csvFileName: npc_pilot_v5.csv
-  protocolId: scene-json-v5
+  csvFileName: npc_pilot_v9.csv
+  setupCsvFileName: npc_pilot_v9_setup.csv
+  protocolId: scene-json-v9

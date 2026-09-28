@@ -151,13 +151,12 @@ public sealed class NpcDialoguePlayerController : MonoBehaviour
         yield return service.Send(request, value => result = value);
         activeActor?.ShowThinking(false);
 
-        string visible = result != null && result.IsUsable
-            ? result.Validation.Dialogue : "The NPC could not answer reliably.";
+        string visible = !string.IsNullOrWhiteSpace(result?.PresentationDialogue)
+            ? result.PresentationDialogue : "Sorry, I cannot answer that right now.";
         pages = SplitIntoPages(visible);
         pageIndex = 0;
         bodyText.text = pages.Length > 0 ? pages[0] : visible;
-        stateText.text = result != null && result.IsUsable
-            ? "Checked response." : result?.Validation?.Error ?? "Request failed.";
+        stateText.text = result != null && result.IsUsable ? "Checked response." : "";
         input.gameObject.SetActive(false);
         hintText.text = pages.Length > 1 ? "Enter: next" : "Enter: close";
         State = NpcPlayerDialogueState.ShowingResponse;

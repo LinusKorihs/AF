@@ -6,7 +6,9 @@ using UnityEngine;
 public sealed class NpcDialogueCsvLogger
 {
     private const string Header =
-        "utc,protocol_id,run_id,phase,case_id,repeat,model_order,backend,knowledge_sha256,model,npc,delivery_arrived,expected_state,world_objects,question,temperature,context_tokens,max_output_tokens,first_text_ms,last_text_ms,validated_response_ms,output_tokens,client_output_tokens_per_second,syntax_valid,structure_valid,state_valid,error_code,facts_review,role_review,raw_response,error\n";
+        "utc,protocol_id,run_id,phase,case_id,repeat,backend_order,model_order,backend,catalog_id,catalog_sha256,knowledge_sha256,model,npc,delivery_arrived,expected_state,expectation,review_notes,sampling_seed,world_objects,question,temperature,context_tokens,max_output_tokens,first_text_ms,last_text_ms,validated_response_ms,output_tokens,client_output_tokens_per_second,syntax_valid,structure_valid,state_valid,error_code,fallback_used,fallback_reason,presented_dialogue,facts_review,role_review,knowledge_boundary_review,relevance_review,dialogue_state_review,raw_response,error\n";
+
+    public static string HeaderLine => Header;
 
     private readonly LocalNpcDialogueSettings settings;
     public NpcDialogueCsvLogger(LocalNpcDialogueSettings settings) => this.settings = settings;
@@ -26,9 +28,11 @@ public sealed class NpcDialogueCsvLogger
             string[] fields = {
                 DateTime.UtcNow.ToString("O"), settings.ProtocolId, request.RunId,
                 request.Phase, request.CaseId, request.Repeat.ToString(),
-                request.ModelOrder.ToString(), result.Backend, result.KnowledgeHash,
+                request.BackendOrder.ToString(), request.ModelOrder.ToString(),
+                result.Backend, request.CatalogId, request.CatalogHash, result.KnowledgeHash,
                 result.Model, request.NpcId, request.DeliveryArrived.ToString(),
-                request.ExpectedState, result.WorldObjects, request.Question,
+                request.ExpectedState, request.Expectation, request.ReviewNotes,
+                request.SamplingSeed.ToString(), result.WorldObjects, request.Question,
                 settings.Temperature.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 settings.ContextTokens.ToString(), settings.MaxOutputTokens.ToString(),
                 Number(result.FirstTextMilliseconds), Number(result.LastTextMilliseconds),
@@ -36,7 +40,9 @@ public sealed class NpcDialogueCsvLogger
                 result.OutputTokens.ToString(), Number(result.ClientOutputTokensPerSecond),
                 validation.SyntaxValid.ToString(), validation.StructureValid.ToString(),
                 validation.StateValid.ToString(), validation.ErrorCode.ToString(),
-                "pending", "pending", result.RawResponse, validation.Error
+                result.FallbackUsed.ToString(), result.FallbackReason,
+                result.PresentationDialogue, "pending", "pending", "pending", "pending", "pending",
+                result.RawResponse, validation.Error
             };
             var line = new StringBuilder();
             for (int i = 0; i < fields.Length; i++)

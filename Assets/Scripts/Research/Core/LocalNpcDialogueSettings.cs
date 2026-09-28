@@ -41,14 +41,18 @@ public sealed class LocalNpcDialogueSettings : ScriptableObject
     [SerializeField, Min(1)] private int requestTimeoutSeconds = 120;
     [Tooltip("Question sent during startup warmup before the model is marked ready.")]
     [SerializeField] private string warmupQuestion = "Ready?";
+    [Tooltip("Base used to derive reproducible per-case sampling seeds for measured batch runs.")]
+    [SerializeField] private int batchSeedBase = 20260924;
 
     [Header("World and logging")]
     [Tooltip("Fact ID of the delivery object in the scene and the matching entry in the knowledge JSON.")]
     [SerializeField] private string deliveryFactId = "supply_delivery";
     [Tooltip("CSV filename written under Application.persistentDataPath for Unity dialogue runs.")]
-    [SerializeField] private string csvFileName = "npc_pilot_v5.csv";
+    [SerializeField] private string csvFileName = "npc_pilot_v9.csv";
+    [Tooltip("CSV filename used for model startup and warmup measurements.")]
+    [SerializeField] private string setupCsvFileName = "npc_pilot_v9_setup.csv";
     [Tooltip("Protocol identifier stored in each CSV row. Change it when the test protocol changes.")]
-    [SerializeField] private string protocolId = "scene-json-v5";
+    [SerializeField] private string protocolId = "scene-json-v9";
 
     public ModelOption[] Models => models;
     public int Port => port;
@@ -59,8 +63,10 @@ public sealed class LocalNpcDialogueSettings : ScriptableObject
     public int ParallelRequests => parallelRequests;
     public int RequestTimeoutSeconds => requestTimeoutSeconds;
     public string WarmupQuestion => warmupQuestion;
+    public int BatchSeedBase => batchSeedBase;
     public string DeliveryFactId => deliveryFactId;
     public string CsvFileName => csvFileName;
+    public string SetupCsvFileName => setupCsvFileName;
     public string ProtocolId => protocolId;
     public string BaseUrl => "http://127.0.0.1:" + port;
     public string ChatEndpoint => BaseUrl + "/v1/chat/completions";

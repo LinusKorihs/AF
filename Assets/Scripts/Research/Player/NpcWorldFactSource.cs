@@ -1,6 +1,6 @@
 using UnityEngine;
 
-// Add to an authored scene object. Its active state controls the matching JSON fact.
+// The GameObject's active state controls the matching fact from npc_knowledge.json.
 public sealed class NpcWorldFactSource : MonoBehaviour
 {
     [SerializeField, Tooltip("Matches a worldObjects ID in the knowledge JSON. This GameObject's active state selects its active or inactive fact.")]

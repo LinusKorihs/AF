@@ -5,6 +5,8 @@ using UnityEngine;
 [CanEditMultipleObjects]
 public sealed class LocalNpcDialoguePilotEditor : Editor
 {
+    private Editor catalogEditor;
+
     public override void OnInspectorGUI()
     {
         serializedObject.Update();
@@ -37,9 +39,21 @@ public sealed class LocalNpcDialoguePilotEditor : Editor
         EditorGUILayout.PropertyField(serializedObject.FindProperty("knowledgeJson"),
             new GUIContent("Knowledge",
                 "JSON file containing world facts, NPC roles, knowledge boundaries, and response instructions."));
-        EditorGUILayout.PropertyField(serializedObject.FindProperty("testCatalog"),
+        var catalogProperty = serializedObject.FindProperty("testCatalog");
+        EditorGUILayout.PropertyField(catalogProperty,
             new GUIContent("Test Catalog",
-                "Versioned JSON catalog used by the automated Research Mode comparison."));
+                "Versioned catalog used by the automated Research Mode comparison."));
+        var catalog = catalogProperty.objectReferenceValue as NpcDialogueTestCatalogAsset;
+        if (catalog != null)
+        {
+            EditorGUILayout.Space(4);
+            EditorGUILayout.LabelField("Test Catalog Contents", EditorStyles.boldLabel);
+            using (new EditorGUI.IndentLevelScope())
+            {
+                Editor.CreateCachedEditor(catalog, null, ref catalogEditor);
+                catalogEditor.OnInspectorGUI();
+            }
+        }
 
         EditorGUILayout.Space(8);
         EditorGUILayout.LabelField("Modes", EditorStyles.boldLabel);
@@ -48,6 +62,7 @@ public sealed class LocalNpcDialoguePilotEditor : Editor
         EditorGUILayout.PropertyField(serializedObject.FindProperty("npcKeys"), true);
         EditorGUILayout.PropertyField(serializedObject.FindProperty("deliveryKey"));
         EditorGUILayout.PropertyField(serializedObject.FindProperty("batchRepeats"));
+        EditorGUILayout.PropertyField(serializedObject.FindProperty("includeCpuInBatch"));
         serializedObject.ApplyModifiedProperties();
     }
 }

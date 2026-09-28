@@ -24,6 +24,7 @@ public sealed class NpcKnowledgeEntry
     public string displayName;
     public string role;
     public string knowledge;
+    public string fallbackDialogue;
 }
 
 [Serializable]
@@ -38,6 +39,20 @@ public static class NpcDialogueProtocol
 {
     private const string CriticalState = "critical";
     private const string ImprovedState = "temporarily_improved";
+
+    private static readonly string[] ExampleQuestions = {
+        "Good evening.",
+        "What did you enjoy doing as a child?",
+        "You seem cowardly.",
+        "Huh?"
+    };
+
+    private static readonly string[] ExampleDialogues = {
+        "Good evening, traveler.",
+        "I do not know enough about my past to answer that.",
+        "Mind your words.",
+        "Could you clarify what you mean?"
+    };
 
     public static string ExpectedState(bool delivered) => delivered ? ImprovedState : CriticalState;
 
@@ -108,7 +123,8 @@ public static class NpcDialogueProtocol
         foreach (var npc in knowledge.npcs)
             if (npc == null || string.IsNullOrWhiteSpace(npc.id)
                 || string.IsNullOrWhiteSpace(npc.role)
-                || string.IsNullOrWhiteSpace(npc.knowledge))
+                || string.IsNullOrWhiteSpace(npc.knowledge)
+                || string.IsNullOrWhiteSpace(npc.fallbackDialogue))
             {
                 problem = "An NPC entry is incomplete.";
                 return false;
@@ -148,11 +164,18 @@ public static class NpcDialogueProtocol
     public static string BuildRequest(LocalNpcDialogueSettings settings,
         LocalNpcDialogueSettings.ModelOption model, NpcKnowledgeEntry npc,
         bool delivered, string playerQuestion, NpcKnowledgeFile knowledge,
-        NpcWorldFactSource[] sources, int maxTokens, bool stream)
+        NpcWorldFactSource[] sources, int maxTokens, bool stream, int samplingSeed = -1)
     {
+        string state = delivered ? ImprovedState : CriticalState;
         var system = new StringBuilder();
-        system.Append(npc.role).Append(' ').Append(knowledge.world).Append(' ')
-            .Append(npc.knowledge).Append(' ');
+        system.AppendLine("[ROLE]")
+            .AppendLine(npc.role)
+            .AppendLine()
+            .AppendLine("[KNOWN FACTS]")
+            .AppendLine(knowledge.world)
+            .AppendLine(npc.knowledge)
+            .AppendLine()
+            .AppendLine("[AUTHORITATIVE CURRENT STATE]");
         var includedFacts = new HashSet<string>();
         foreach (var source in sources)
         {
@@ -160,19 +183,35 @@ public static class NpcDialogueProtocol
             foreach (var fact in knowledge.worldObjects)
             {
                 if (fact == null || fact.id != source.FactId) continue;
-                system.Append(source.gameObject.activeInHierarchy ? fact.activeFact : fact.inactiveFact)
-                    .Append(' ');
+                system.AppendLine(source.gameObject.activeInHierarchy
+                    ? fact.activeFact : fact.inactiveFact);
                 break;
             }
         }
-        system.Append(knowledge.unknownRule).Append(' ')
-            .Append(knowledge.responseInstruction.Replace("{state}",
-                delivered ? ImprovedState : CriticalState));
+        system.Append("The required JSON supply_state value is exactly \"")
+            .Append(state).AppendLine("\".")
+            .AppendLine()
+            .AppendLine("[DIALOGUE RULES]")
+            .AppendLine(knowledge.unknownRule)
+            .AppendLine()
+            .AppendLine("[OUTPUT FORMAT]")
+            .AppendLine(knowledge.responseInstruction.Replace("{state}", state));
+
+        var messages = new StringBuilder();
+        AppendMessage(messages, "system", system.ToString());
+        for (int i = 0; i < ExampleQuestions.Length; i++)
+        {
+            AppendMessage(messages, "user", ExampleQuestions[i]);
+            AppendMessage(messages, "assistant", "{\"dialogue\":\""
+                + EscapeJson(ExampleDialogues[i]) + "\",\"supply_state\":\""
+                + state + "\"}");
+        }
+        AppendMessage(messages, "user", BuildCurrentPlayerMessage(playerQuestion));
 
         return "{\"model\":\"" + EscapeJson(model.id) + "\","
-            + "\"messages\":[{\"role\":\"system\",\"content\":\"" + EscapeJson(system.ToString())
-            + "\"},{\"role\":\"user\",\"content\":\"" + EscapeJson(playerQuestion) + "\"}],"
+            + "\"messages\":[" + messages + "],"
             + "\"temperature\":" + settings.Temperature.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            + ",\"seed\":" + samplingSeed
             + ",\"max_tokens\":" + maxTokens
             + (stream ? ",\"stream\":true,\"stream_options\":{\"include_usage\":true},"
                 : ",\"stream\":false,")
@@ -271,9 +310,14 @@ public static class NpcDialogueProtocol
 
     public static string KnowledgeHash(string content)
     {
+        return ContentHash(content);
+    }
+
+    public static string ContentHash(string content)
+    {
         using (var sha = SHA256.Create())
         {
-            byte[] hash = sha.ComputeHash(Encoding.UTF8.GetBytes(content));
+            byte[] hash = sha.ComputeHash(Encoding.UTF8.GetBytes(content ?? ""));
             return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
         }
     }
@@ -297,5 +341,24 @@ public static class NpcDialogueProtocol
             }
         }
         return escaped.ToString();
+    }
+
+    private static void AppendMessage(StringBuilder messages, string role, string content)
+    {
+        if (messages.Length > 0) messages.Append(',');
+        messages.Append("{\"role\":\"").Append(role)
+            .Append("\",\"content\":\"").Append(EscapeJson(content)).Append("\"}");
+    }
+
+    private static string BuildCurrentPlayerMessage(string playerQuestion)
+    {
+        return "[CURRENT PLAYER MESSAGE]\n"
+            + "Apply the rules above to only this current player message.\n"
+            + "- Answer only this message.\n"
+            + "- For social, personal, or unclear input, do not add world facts or duties.\n"
+            + "- If information is missing, say that you do not know, then stop.\n"
+            + "- If the input is unclear, ask one direct clarification question ending in a question mark.\n"
+            + "- Never claim sensory perception.\n"
+            + "<player_message>" + (playerQuestion ?? "") + "</player_message>";
     }
 }

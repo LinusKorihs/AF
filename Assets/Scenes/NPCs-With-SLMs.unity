@@ -44049,10 +44049,14 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 1140000000000000000, guid: cfdbad8107ae4c52ac9c84c3df64b401, type: 3}
       propertyPath: mode
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 1140000000000000000, guid: cfdbad8107ae4c52ac9c84c3df64b401, type: 3}
       propertyPath: startupModel
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1140000000000000000, guid: cfdbad8107ae4c52ac9c84c3df64b401, type: 3}
+      propertyPath: includeCpuInBatch
       value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []

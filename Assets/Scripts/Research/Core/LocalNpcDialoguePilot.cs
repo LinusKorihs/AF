@@ -1,9 +1,11 @@
 using System;
 using System.Collections;
+using System.IO;
+using System.Text;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-// Authored prefab entry point for the playable and research dialogue modes.
+// Entry point for Player Mode and Research Mode.
 public sealed class LocalNpcDialoguePilot : MonoBehaviour
 {
     [SerializeField, Tooltip("Settings asset containing models, inference parameters, and logging options.")]
@@ -15,7 +17,7 @@ public sealed class LocalNpcDialoguePilot : MonoBehaviour
     [SerializeField, Tooltip("JSON file containing world facts, NPC roles, and response instructions.")]
     private TextAsset knowledgeJson;
     [SerializeField, Tooltip("Versioned test catalog used by the automated Research Mode run.")]
-    private TextAsset testCatalog;
+    private NpcDialogueTestCatalogAsset testCatalog;
     [SerializeField, Tooltip("Load and warm up the selected startup model when the scene starts.")]
     private bool loadModelOnSceneStart = true;
     [SerializeField, Tooltip("Player shows the game-facing dialogue UI; Research shows technical controls.")]
@@ -28,7 +30,9 @@ public sealed class LocalNpcDialoguePilot : MonoBehaviour
     [SerializeField, Tooltip("One-way Player Mode key that makes the supply delivery arrive.")]
     private Key deliveryKey = Key.R;
     [SerializeField, Min(1), Tooltip("Measured repeats per test case and model in the Research Mode suite.")]
-    private int batchRepeats = 5;
+    private int batchRepeats = 10;
+    [SerializeField, Tooltip("Run the full measured suite on CPU after all Vulkan combinations finish.")]
+    private bool includeCpuInBatch = true;
 
     private LocalNpcDialogueService service;
     private NpcDialoguePlayerController playerController;
@@ -36,6 +40,10 @@ public sealed class LocalNpcDialoguePilot : MonoBehaviour
     private int selectedNpc;
     private string reply = "";
     private string measurements = "";
+    private NpcDialogueTestCatalog runtimeCatalog;
+    private Vector2 catalogScroll;
+    private string repeatInput = "10";
+    private string catalogStatus = "";
 
     private void Awake()
     {
@@ -48,7 +56,9 @@ public sealed class LocalNpcDialoguePilot : MonoBehaviour
 
         service.Configure(settings, knowledgeJson);
         playerController.Configure(service, npcKeys, deliveryKey);
-        batchRunner.Configure(service, testCatalog, batchRepeats);
+        batchRunner.Configure(service, batchRepeats, includeCpuInBatch);
+        ResetRuntimeCatalog();
+        repeatInput = batchRepeats.ToString();
         playerController.SetPlayerModeEnabled(mode == LocalNpcUiMode.Player);
     }
 
@@ -61,7 +71,8 @@ public sealed class LocalNpcDialoguePilot : MonoBehaviour
             int repeats = ReadIntArgument("--repeat", batchRepeats);
             string output = ReadStringArgument("--output");
             string caseId = ReadStringArgument("--case");
-            batchRunner.StartSuite(repeats, output, true, caseId);
+            bool includeCpu = includeCpuInBatch && !HasCommandLineArgument("--gpu-only");
+            batchRunner.StartSuite(runtimeCatalog, repeats, output, true, caseId, includeCpu);
         }
         else if (loadModelOnSceneStart && settings != null)
             StartCoroutine(service.ActivateModel(startupModel));
@@ -70,7 +81,7 @@ public sealed class LocalNpcDialoguePilot : MonoBehaviour
     private void OnGUI()
     {
         if (mode != LocalNpcUiMode.Research || settings == null || service == null) return;
-        GUILayout.BeginArea(new Rect(12, 12, 650, 620), GUI.skin.box);
+        GUILayout.BeginArea(new Rect(12, 12, 760, Mathf.Max(620, Screen.height - 24)), GUI.skin.box);
         GUILayout.Label("Local NPC Dialogue: Research Mode");
         GUILayout.Label("Local runtime:");
         GUILayout.BeginHorizontal();
@@ -126,13 +137,52 @@ public sealed class LocalNpcDialoguePilot : MonoBehaviour
         GUI.enabled = true;
 
         GUILayout.Space(8);
-        GUILayout.Label("Automated comparison: 12 cases × " + batchRepeats
-            + " repeats × 2 models = " + (12 * batchRepeats * 2) + " responses");
+        GUILayout.Label("Automated comparison", GUI.skin.box);
+        bool catalogEditable = !batchRunner.IsRunning;
+        GUI.enabled = catalogEditable;
+        GUILayout.BeginHorizontal();
+        GUILayout.Label("Repeats", GUILayout.Width(60));
+        repeatInput = GUILayout.TextField(repeatInput, GUILayout.Width(70));
+        if (int.TryParse(repeatInput, out int enteredRepeats) && enteredRepeats > 0)
+            batchRepeats = enteredRepeats;
+        includeCpuInBatch = GUILayout.Toggle(includeCpuInBatch,
+            "Include CPU after Vulkan", GUILayout.Width(190));
+        if (GUILayout.Button("Reset to Prefab", GUILayout.Width(130))) ResetRuntimeCatalog();
+        if (GUILayout.Button("Export JSON", GUILayout.Width(110))) ExportRuntimeCatalog();
+        GUILayout.EndHorizontal();
+
+        int caseCount = runtimeCatalog?.cases?.Length ?? 0;
+        int modelCount = settings.Models?.Length ?? 0;
+        int backendCount = NpcDialogueBatchRunner.BuildBackendSequence(includeCpuInBatch).Length;
+        int total = NpcDialogueBatchRunner.CalculateTotalRequests(
+            caseCount, batchRepeats, modelCount, includeCpuInBatch);
+        GUILayout.Label(caseCount + " cases × " + batchRepeats + " repeats × "
+            + modelCount + " models × " + backendCount + " backend(s) = "
+            + total + " responses");
+        if (batchRepeats > 10)
+            GUILayout.Label("Note: values above 10 increase runtime and manual review work.");
+        if (!string.IsNullOrEmpty(catalogStatus)) GUILayout.Label(catalogStatus);
+
+        GUILayout.Label("Temporary test questions (metadata is read-only here):");
+        catalogScroll = GUILayout.BeginScrollView(catalogScroll, GUILayout.Height(250));
+        if (runtimeCatalog?.cases != null)
+            foreach (var test in runtimeCatalog.cases)
+            {
+                GUILayout.Label(test.id + " | " + test.npcId + " | "
+                    + test.expectedState + " | " + test.expectation);
+                test.question = GUILayout.TextField(test.question ?? "");
+            }
+        GUILayout.EndScrollView();
+        GUI.enabled = true;
+
         if (!batchRunner.IsRunning)
         {
-            GUI.enabled = !service.IsBusy;
-            if (GUILayout.Button("Run Test Suite (Vulkan)"))
-                batchRunner.StartSuite(batchRepeats);
+            GUI.enabled = !service.IsBusy && batchRepeats > 0 && caseCount > 0;
+            string button = includeCpuInBatch
+                ? "Run GPU + CPU Test Suite" : "Run GPU Test Suite";
+            if (GUILayout.Button(button))
+                batchRunner.StartSuite(runtimeCatalog, batchRepeats,
+                    includeCpu: includeCpuInBatch);
         }
         else if (GUILayout.Button("Stop after current request")) batchRunner.StopAfterCurrent();
         GUI.enabled = true;
@@ -144,6 +194,36 @@ public sealed class LocalNpcDialoguePilot : MonoBehaviour
         if (!string.IsNullOrEmpty(reply)) GUILayout.TextArea(reply, GUILayout.Height(85));
         if (!string.IsNullOrEmpty(measurements)) GUILayout.Label(measurements);
         GUILayout.EndArea();
+    }
+
+    private void ResetRuntimeCatalog()
+    {
+        runtimeCatalog = testCatalog != null ? testCatalog.CreateSnapshot() : null;
+        catalogStatus = runtimeCatalog == null
+            ? "No test catalog asset is assigned." : "Questions reset to the prefab catalog.";
+    }
+
+    private void ExportRuntimeCatalog()
+    {
+        if (runtimeCatalog == null)
+        {
+            catalogStatus = "No runtime catalog is available to export.";
+            return;
+        }
+        try
+        {
+            string safeId = string.IsNullOrWhiteSpace(runtimeCatalog.catalogId)
+                ? "npc_test_catalog" : runtimeCatalog.catalogId;
+            string filename = safeId + "_" + DateTime.UtcNow.ToString("yyyyMMddTHHmmssZ") + ".json";
+            string path = Path.Combine(Application.persistentDataPath, filename);
+            File.WriteAllText(path, runtimeCatalog.ToJson(true), new UTF8Encoding(true));
+            catalogStatus = "Exported: " + path;
+            Debug.Log("[NPC Pilot] Test catalog exported: " + path);
+        }
+        catch (Exception ex)
+        {
+            catalogStatus = "Export failed: " + ex.Message;
+        }
     }
 
     private IEnumerator SendManualQuestion()
@@ -171,7 +251,7 @@ public sealed class LocalNpcDialoguePilot : MonoBehaviour
                 ? result.FirstTextMilliseconds.Value.ToString("F0") + " ms" : "not captured")
             + " | Validated response: " + result.ValidatedResponseMilliseconds.ToString("F0")
             + " ms | Output tokens: " + result.OutputTokens
-            + " | JSON/fields/state: " + result.Validation.SyntaxValid + "/"
+            + " | JSON/fields/state field: " + result.Validation.SyntaxValid + "/"
             + result.Validation.StructureValid + "/" + result.Validation.StateValid;
     }
 

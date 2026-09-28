@@ -18,6 +18,7 @@ public sealed class LocalNpcDialogueService : MonoBehaviour
     public bool IsBusy { get; private set; }
     public bool IsReady => runtime != null && runtime.IsReady;
     public string ActiveModelId => activeModelId;
+    public NpcModelSetupResult LastSetupResult { get; private set; }
     public string Status { get; private set; } = "Dialogue service is not configured.";
     public LocalNpcDialogueSettings Settings => settings;
 
@@ -101,21 +102,32 @@ public sealed class LocalNpcDialogueService : MonoBehaviour
 
     public IEnumerator ActivateModel(int index, Action<bool> completed = null)
     {
+        var requestedModel = settings?.GetModel(index);
+        LastSetupResult = new NpcModelSetupResult {
+            Backend = Backend.ToString(),
+            Model = requestedModel?.id ?? "",
+            Success = false,
+            Error = "Model activation did not start."
+        };
         if (settings == null || runtime == null || IsBusy)
         {
+            LastSetupResult.Error = settings == null || runtime == null
+                ? "Dialogue service is not configured." : "Dialogue service is busy.";
             completed?.Invoke(false);
             yield break;
         }
-        var model = settings.GetModel(index);
+        var model = requestedModel;
         if (model == null)
         {
             Status = "Select a configured model in the prefab.";
+            LastSetupResult.Error = Status;
             completed?.Invoke(false);
             yield break;
         }
         if (!TryGetKnowledge(out var knowledge, out var problem))
         {
             Status = "Knowledge file: " + problem;
+            LastSetupResult.Error = Status;
             UnityEngine.Debug.LogWarning("[NPC Pilot] " + Status);
             completed?.Invoke(false);
             yield break;
@@ -132,6 +144,15 @@ public sealed class LocalNpcDialogueService : MonoBehaviour
         var timer = Stopwatch.StartNew();
         yield return runtime.LoadModel(model, Backend, warmup);
         timer.Stop();
+        LastSetupResult = new NpcModelSetupResult {
+            Backend = Backend.ToString(),
+            Model = model.id,
+            ServerReadyMilliseconds = runtime.LastServerReadyMilliseconds,
+            WarmupMilliseconds = runtime.LastWarmupMilliseconds,
+            TotalStartupMilliseconds = timer.Elapsed.TotalMilliseconds,
+            Success = runtime.IsReady,
+            Error = runtime.IsReady ? "" : runtime.Status
+        };
         if (runtime.IsReady)
         {
             activeModelId = model.id;
@@ -189,7 +210,8 @@ public sealed class LocalNpcDialogueService : MonoBehaviour
         result.WorldObjects = NpcDialogueProtocol.WorldStateSnapshot(worldSources);
 
         string body = NpcDialogueProtocol.BuildRequest(settings, model, npc, delivered,
-            input.Question, knowledge, worldSources, settings.MaxOutputTokens, true);
+            input.Question, knowledge, worldSources, settings.MaxOutputTokens, true,
+            input.SamplingSeed);
         var timer = Stopwatch.StartNew();
         using (var request = UnityWebRequest.Post(settings.ChatEndpoint, body, "application/json"))
         {
@@ -219,6 +241,7 @@ public sealed class LocalNpcDialogueService : MonoBehaviour
         }
         timer.Stop();
         result.ValidatedResponseMilliseconds = timer.Elapsed.TotalMilliseconds;
+        NpcDialoguePresentation.Apply(result, npc);
         csv.Write(result);
         Status = result.IsUsable ? "Response received and validated."
             : result.Validation.Error;
@@ -231,13 +254,16 @@ public sealed class LocalNpcDialogueService : MonoBehaviour
         Request = input,
         Backend = Backend.ToString(),
         Model = activeModelId,
-        RawResponse = ""
+        RawResponse = "",
+        PresentationDialogue = "",
+        FallbackReason = ""
     };
 
     private void CompleteFailure(NpcDialogueResult result, NpcDialogueErrorCode code,
         string message, Action<NpcDialogueResult> completed)
     {
         result.Validation = Failure(code, message);
+        NpcDialoguePresentation.Apply(result, null);
         Status = message;
         if (result.Request != null && csv != null) csv.Write(result);
         UnityEngine.Debug.LogWarning("[NPC Pilot] " + message);
@@ -266,7 +292,7 @@ public sealed class LocalNpcDialogueService : MonoBehaviour
                 ? result.FirstTextMilliseconds.Value.ToString("F0") + " ms" : "not captured")
             + " | Validated response: " + result.ValidatedResponseMilliseconds.ToString("F0")
             + " ms | Output tokens: " + result.OutputTokens
-            + " | JSON/fields/state: " + result.Validation.SyntaxValid + "/"
+            + " | JSON/fields/state field: " + result.Validation.SyntaxValid + "/"
             + result.Validation.StructureValid + "/" + result.Validation.StateValid;
         if (result.IsUsable) UnityEngine.Debug.Log("[NPC Pilot] " + measurements);
         else UnityEngine.Debug.LogWarning("[NPC Pilot] " + result.Validation.Error);

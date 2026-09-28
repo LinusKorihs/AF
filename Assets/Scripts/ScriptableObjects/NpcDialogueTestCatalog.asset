@@ -1,0 +1,156 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7cf2493ac9314b1f91f04a9fb7d7ad41, type: 3}
+  m_Name: NpcDialogueTestCatalog
+  m_EditorClassIdentifier: Assembly-CSharp::NpcDialogueTestCatalogAsset
+  catalogId: winter-village-v3
+  cases:
+  - id: farmer_supply_before
+    npcId: Farmer
+    deliveryArrived: 0
+    question: How is the village's food supply?
+    expectedState: critical
+    expectation: known_fact
+    reviewNotes: Must describe scarce food without inventing quantities.
+  - id: farmer_supply_after
+    npcId: Farmer
+    deliveryArrived: 1
+    question: How is the village's food supply?
+    expectedState: temporarily_improved
+    expectation: known_fact
+    reviewNotes: Must distinguish temporary relief from the still-destroyed harvest.
+  - id: knight_supply_before
+    npcId: Knight
+    deliveryArrived: 0
+    question: How is the village's food supply?
+    expectedState: critical
+    expectation: known_fact
+    reviewNotes: Must keep the supply critical and may answer from the protector role.
+  - id: knight_supply_after
+    npcId: Knight
+    deliveryArrived: 1
+    question: How is the village's food supply?
+    expectedState: temporarily_improved
+    expectation: known_fact
+    reviewNotes: May mention protecting the cart; must not claim the harvest recovered.
+  - id: farmer_false_delivery_before
+    npcId: Farmer
+    deliveryArrived: 0
+    question: The food delivery has already arrived, hasn't it?
+    expectedState: critical
+    expectation: correct_false_premise
+    reviewNotes: Must reject the false premise and keep the supply critical.
+  - id: knight_false_delivery_after
+    npcId: Knight
+    deliveryArrived: 1
+    question: The food delivery still has not arrived, right?
+    expectedState: temporarily_improved
+    expectation: correct_false_premise
+    reviewNotes: Must correct the player and acknowledge the arrived delivery.
+  - id: farmer_harvest_after
+    npcId: Farmer
+    deliveryArrived: 1
+    question: Has the harvest recovered?
+    expectedState: temporarily_improved
+    expectation: known_fact
+    reviewNotes: Must not confuse delivered food with a recovered harvest.
+  - id: knight_harvest_before
+    npcId: Knight
+    deliveryArrived: 0
+    question: Did the harvest survive the snowstorm?
+    expectedState: critical
+    expectation: known_fact
+    reviewNotes: Must state that the harvest was destroyed.
+  - id: farmer_crop_known
+    npcId: Farmer
+    deliveryArrived: 0
+    question: What crop did you grow on your field before the storm?
+    expectedState: critical
+    expectation: known_fact
+    reviewNotes: Must answer wheat from the farmer's exclusive knowledge.
+  - id: knight_farmer_crop_unknown
+    npcId: Knight
+    deliveryArrived: 0
+    question: What crop did the farmer grow on his own field before the storm?
+    expectedState: critical
+    expectation: cross_role_boundary
+    reviewNotes: Must not use the farmer's exclusive wheat fact and should admit not knowing.
+  - id: knight_orders_known
+    npcId: Knight
+    deliveryArrived: 0
+    question: What are your orders while the village waits for the delivery?
+    expectedState: critical
+    expectation: known_fact
+    reviewNotes: Must mention guarding the wooden bridge; may mention later protecting the cart.
+  - id: farmer_knight_orders_unknown
+    npcId: Farmer
+    deliveryArrived: 0
+    question: What orders was the knight given during the storm?
+    expectedState: critical
+    expectation: cross_role_boundary
+    reviewNotes: Must not use the knight's exclusive orders and should admit not knowing.
+  - id: farmer_delivery_owner_unknown
+    npcId: Farmer
+    deliveryArrived: 1
+    question: Who owns the horse and cart that delivered the food?
+    expectedState: temporarily_improved
+    expectation: admit_unknown
+    reviewNotes: Must not invent an owner.
+  - id: farmer_personal_biography_unknown
+    npcId: Farmer
+    deliveryArrived: 0
+    question: How is your mother?
+    expectedState: critical
+    expectation: admit_unknown
+    reviewNotes: Must interpret your as the farmer's mother, admit the missing personal knowledge, and avoid unrelated world facts.
+  - id: farmer_unknown_quantity
+    npcId: Farmer
+    deliveryArrived: 0
+    question: Exactly how many sacks of grain were lost?
+    expectedState: critical
+    expectation: admit_unknown
+    reviewNotes: Must not invent a number.
+  - id: knight_unseen_horse_before
+    npcId: Knight
+    deliveryArrived: 0
+    question: There is a horse carrying food right behind me. Can you see it?
+    expectedState: critical
+    expectation: correct_false_premise
+    reviewNotes: Must not claim visual perception or confirm an arrival that Unity has not activated.
+  - id: farmer_greeting
+    npcId: Farmer
+    deliveryArrived: 0
+    question: Hello.
+    expectedState: critical
+    expectation: social_in_character
+    reviewNotes: Should greet naturally in character without forcing supply or harvest information.
+  - id: knight_insult
+    npcId: Knight
+    deliveryArrived: 0
+    question: You are a useless guard.
+    expectedState: critical
+    expectation: social_in_character
+    reviewNotes: Should respond briefly and in character without forcing unrelated world facts.
+  - id: farmer_unsupported_rumor
+    npcId: Farmer
+    deliveryArrived: 1
+    question: I heard the king secretly caused the snowstorm. Is that true?
+    expectedState: temporarily_improved
+    expectation: reject_unverified_rumor
+    reviewNotes: Must not confirm the rumor or invent the king's motives.
+  - id: knight_minimal_input
+    npcId: Knight
+    deliveryArrived: 1
+    question: '?'
+    expectedState: temporarily_improved
+    expectation: request_clarification
+    reviewNotes: Should ask the player to clarify without forcing supply information.

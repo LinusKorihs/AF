@@ -5,25 +5,48 @@ using UnityEngine;
 [Serializable]
 public sealed class NpcDialogueTestCatalog
 {
+    private static readonly HashSet<string> AllowedExpectations =
+        new HashSet<string>(StringComparer.Ordinal) {
+            "known_fact", "admit_unknown", "cross_role_boundary",
+            "correct_false_premise", "reject_unverified_rumor",
+            "social_in_character", "request_clarification"
+        };
+
     public string catalogId;
     public NpcDialogueTestCase[] cases;
 
-    public static bool TryLoad(TextAsset asset, NpcKnowledgeFile knowledge,
+    public NpcDialogueTestCatalog Clone()
+    {
+        return JsonUtility.FromJson<NpcDialogueTestCatalog>(JsonUtility.ToJson(this));
+    }
+
+    public string ToJson(bool prettyPrint = true) => JsonUtility.ToJson(this, prettyPrint);
+
+    public string Hash => NpcDialogueProtocol.ContentHash(ToJson(false));
+
+    public static bool TryLoad(string json, NpcKnowledgeFile knowledge,
         out NpcDialogueTestCatalog catalog, out string problem)
     {
         catalog = null;
         problem = "";
-        if (asset == null)
+        if (string.IsNullOrWhiteSpace(json))
         {
-            problem = "No NPC test catalog is assigned.";
+            problem = "No NPC test catalog is configured.";
             return false;
         }
-        try { catalog = JsonUtility.FromJson<NpcDialogueTestCatalog>(asset.text); }
+        try { catalog = JsonUtility.FromJson<NpcDialogueTestCatalog>(json); }
         catch (Exception ex)
         {
             problem = "Test catalog could not be parsed: " + ex.Message;
             return false;
         }
+        return TryValidate(catalog, knowledge, out problem);
+    }
+
+    public static bool TryValidate(NpcDialogueTestCatalog catalog,
+        NpcKnowledgeFile knowledge, out string problem)
+    {
+        problem = "";
         if (catalog == null || string.IsNullOrWhiteSpace(catalog.catalogId)
             || catalog.cases == null || catalog.cases.Length == 0)
         {
@@ -37,7 +60,8 @@ public sealed class NpcDialogueTestCatalog
             if (test == null || string.IsNullOrWhiteSpace(test.id)
                 || !ids.Add(test.id) || string.IsNullOrWhiteSpace(test.npcId)
                 || string.IsNullOrWhiteSpace(test.question)
-                || string.IsNullOrWhiteSpace(test.expectation)
+                || !AllowedExpectations.Contains(test.expectation)
+                || string.IsNullOrWhiteSpace(test.reviewNotes)
                 || NpcDialogueProtocol.FindNpc(knowledge, test.npcId) == null)
             {
                 problem = "A test case is incomplete, duplicated, or references an unknown NPC.";
